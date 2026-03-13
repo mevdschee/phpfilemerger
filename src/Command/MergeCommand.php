@@ -64,12 +64,7 @@ class MergeCommand extends Command
                 InputOption::VALUE_REQUIRED,
                 'Vendor directory path (default: PROJECT_ROOT/vendor)'
             )
-            ->addOption(
-                'dry-run',
-                null,
-                InputOption::VALUE_NONE,
-                'Show what would be included without writing output'
-            );
+        ;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -139,21 +134,6 @@ class MergeCommand extends Command
             $io->section('Sorting files...');
             $sortedFiles = $graph->getTopologicalSort();
 
-            if ($output->isVerbose()) {
-                $io->text('File order:');
-                foreach ($sortedFiles as $i => $file) {
-                    $relativePath = str_replace($projectRoot . '/', '', $file);
-                    $io->text(sprintf('  %d. %s', $i + 1, $relativePath));
-                }
-                $io->newLine();
-            }
-
-            // Dry run check
-            if ($input->getOption('dry-run')) {
-                $io->warning('Dry run mode - no files written');
-                return Command::SUCCESS;
-            }
-
             // Merge files
             $io->section('Merging files...');
             $merger = new FileMerger();
@@ -190,9 +170,6 @@ class MergeCommand extends Command
             return Command::SUCCESS;
         } catch (RuntimeException $e) {
             $io->error($e->getMessage());
-            if ($output->isVerbose()) {
-                $io->text($e->getTraceAsString());
-            }
             return Command::FAILURE;
         }
     }

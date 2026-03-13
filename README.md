@@ -76,8 +76,6 @@ php phpfilemerger.phar <entry> [options]
 | `--vendor-dir`    |       | `<project-root>/vendor` | Vendor directory path                                                                                    |
 | `--exclude-entry` |       | `false`                 | Exclude the entry point's procedural code from output (output is named `<entry>.include.php` by default) |
 | `--indent`        |       | `4`                     | Number of spaces used for indentation in the output                                                      |
-| `--dry-run`       |       | `false`                 | Show which files would be included without writing output                                                |
-| `--verbose`       | `-v`  |                         | Show the ordered list of files included in the merge                                                     |
 
 The project root is auto-detected by walking up the directory tree from the
 entry point looking for a `composer.json` file.
@@ -95,12 +93,6 @@ Specify a custom output path:
 
 ```bash
 php phpfilemerger.phar merge src/index.php --output dist/app.php
-```
-
-Preview what would be included without writing a file:
-
-```bash
-php phpfilemerger.phar merge src/index.php --dry-run --verbose
 ```
 
 Produce an includeable library file (no entry-point code, only class
