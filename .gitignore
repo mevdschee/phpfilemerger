@@ -1,0 +1,11 @@
+/vendor/
+/composer.lock
+/.phpunit.cache
+/phpunit.xml
+*.phar
+/build/output/
+/.idea/
+/.vscode/
+/php-crud-api/
+index.merged.php
+/bin/
