@@ -7,5 +7,4 @@
 /.idea/
 /.vscode/
 /php-crud-api/
-index.merged.php
-/bin/
+/phpfilemerger.php

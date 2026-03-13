@@ -53,4 +53,20 @@ readonly class PHPFile
         $names = array_map(fn(ClassReference $ref) => $ref->fullyQualifiedName, $this->references);
         return array_unique($names);
     }
+
+    /**
+     * Get class names that are "hard" dependencies (must be defined before this file).
+     * Only extends, implements, and trait use require ordering.
+     * @return array<string>
+     */
+    public function getHardDependencyClassNames(): array
+    {
+        $names = [];
+        foreach ($this->references as $ref) {
+            if (in_array($ref->type, ['extends', 'implements', 'use'], true)) {
+                $names[] = $ref->fullyQualifiedName;
+            }
+        }
+        return array_unique($names);
+    }
 }

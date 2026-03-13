@@ -105,22 +105,31 @@ class TopologicalSorter
     {
         $sorted = [];
         $inDegree = [];
-        $graph = $this->dependencies;
 
-        // Calculate in-degree for each node
+        // Build reverse dependency graph (who depends on me?)
+        $reverseDeps = [];
+        foreach (array_keys($this->files) as $file) {
+            $reverseDeps[$file] = [];
+        }
+
+        // Calculate in-degree for each node (number of dependencies)
         foreach (array_keys($this->files) as $file) {
             $inDegree[$file] = 0;
         }
 
-        foreach ($graph as $from => $toList) {
+        foreach ($this->dependencies as $from => $toList) {
             foreach ($toList as $to) {
                 if (isset($this->files[$to])) {
-                    $inDegree[$to] = ($inDegree[$to] ?? 0) + 1;
+                    // $from depends on $to
+                    // So $to is a dependency of $from
+                    $inDegree[$from] = ($inDegree[$from] ?? 0) + 1;
+                    // And $from is a dependent of $to
+                    $reverseDeps[$to][] = $from;
                 }
             }
         }
 
-        // Queue all nodes with in-degree 0
+        // Queue all nodes with in-degree 0 (no dependencies)
         $queue = [];
         foreach ($inDegree as $file => $degree) {
             if ($degree === 0) {
@@ -133,13 +142,11 @@ class TopologicalSorter
             $current = array_shift($queue);
             $sorted[] = $current;
 
-            // Reduce in-degree of neighbors
-            foreach ($graph[$current] ?? [] as $neighbor) {
-                if (isset($this->files[$neighbor])) {
-                    $inDegree[$neighbor]--;
-                    if ($inDegree[$neighbor] === 0) {
-                        $queue[] = $neighbor;
-                    }
+            // Reduce in-degree of dependents (those who depend on current)
+            foreach ($reverseDeps[$current] as $dependent) {
+                $inDegree[$dependent]--;
+                if ($inDegree[$dependent] === 0) {
+                    $queue[] = $dependent;
                 }
             }
         }

@@ -17,8 +17,11 @@ class DependencyGraph
     /** @var array<string, PHPFile> Map of file path => PHPFile */
     private array $files = [];
 
-    /** @var array<string, array<string>> Map of file path => array of dependency file paths */
+    /** @var array<string, array<string>> Map of file path => array of dependency file paths (all refs, for discovery) */
     private array $dependencies = [];
+
+    /** @var array<string, array<string>> Map of file path => array of hard dependency file paths (for ordering) */
+    private array $hardDependencies = [];
 
     /** @var array<string> Set of visited files to detect cycles */
     private array $visited = [];
@@ -42,6 +45,7 @@ class DependencyGraph
     {
         $this->files = [];
         $this->dependencies = [];
+        $this->hardDependencies = [];
         $this->visited = [];
         $this->processing = [];
 
@@ -81,14 +85,23 @@ class DependencyGraph
             $phpFile = $this->parser->parseFile($filePath);
             $this->files[$filePath] = $phpFile;
             $this->dependencies[$filePath] = [];
+            $this->hardDependencies[$filePath] = [];
 
-            // Process each referenced class
+            // Collect hard dependency class names for ordering
+            $hardDepClasses = array_flip($phpFile->getHardDependencyClassNames());
+
+            // Process each referenced class (all references for discovery)
             foreach ($phpFile->getReferencedClassNames() as $className) {
                 $depFilePath = $this->resolver->resolve($className);
 
                 if ($depFilePath !== null && $depFilePath !== $filePath) {
-                    // Add dependency
+                    // Add dependency (all refs)
                     $this->dependencies[$filePath][] = $depFilePath;
+
+                    // Track hard dependency if this class is extends/implements/use
+                    if (isset($hardDepClasses[$className])) {
+                        $this->hardDependencies[$filePath][] = $depFilePath;
+                    }
 
                     // Recursively process dependency
                     $this->processFile($depFilePath);
@@ -97,6 +110,7 @@ class DependencyGraph
 
             // Remove duplicates from dependencies
             $this->dependencies[$filePath] = array_unique($this->dependencies[$filePath]);
+            $this->hardDependencies[$filePath] = array_unique($this->hardDependencies[$filePath]);
         } catch (RuntimeException $e) {
             // Log warning but continue
             error_log("Warning: Failed to process file $filePath: " . $e->getMessage());
@@ -140,12 +154,40 @@ class DependencyGraph
     /**
      * Get topologically sorted list of files
      * 
+     * Uses only hard dependencies (extends/implements/use) for ordering.
+     * Soft dependencies (type hints, new, etc.) are used only for file discovery.
+     * 
      * @return array<string> Array of file paths in dependency order
-     * @throws RuntimeException
      */
     public function getTopologicalSort(): array
     {
-        $sorter = new TopologicalSorter($this->files, $this->dependencies);
-        return $sorter->sort();
+        $visited = [];
+        $sorted = [];
+
+        // DFS post-order using only hard dependencies
+        // Back-edges (cycles) are simply ignored
+        $visit = function (string $file) use (&$visit, &$visited, &$sorted): void {
+            if (isset($visited[$file])) {
+                return;
+            }
+            $visited[$file] = true;
+
+            foreach ($this->hardDependencies[$file] ?? [] as $dep) {
+                if (isset($this->files[$dep])) {
+                    $visit($dep);
+                }
+            }
+
+            $sorted[] = $file;
+        };
+
+        // Visit all files (sorted for determinism)
+        $allFiles = array_keys($this->files);
+        sort($allFiles);
+        foreach ($allFiles as $file) {
+            $visit($file);
+        }
+
+        return $sorted;
     }
 }

@@ -10,7 +10,7 @@ use PhpFileMerger\Model\Config;
 use PhpFileMerger\Parser\ComposerParser;
 use PhpFileMerger\Parser\PhpFileParser;
 use PhpFileMerger\Resolver\PSR4Resolver;
-use RuntimeException;
+use \RuntimeException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
