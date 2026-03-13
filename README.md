@@ -165,7 +165,6 @@ namespace {
 - **Top-level `exit`/`die`/`return`** — these are disallowed in dependency files
   (they would abort execution of the entire merged file) and will cause an
   error.
-- **Windows paths** — path separator handling on Windows is not guaranteed.
 
 ## Development
 

@@ -179,10 +179,10 @@ class MergeCommand extends Command
      */
     private function resolveAbsolutePath(string $path): string
     {
-        if ($path[0] === '/') {
+        if (str_starts_with($path, DIRECTORY_SEPARATOR) || (strlen($path) > 1 && $path[1] === ':')) {
             return $path;
         }
-        return getcwd() . '/' . $path;
+        return getcwd() . DIRECTORY_SEPARATOR . $path;
     }
 
     /**

@@ -110,7 +110,7 @@ class PSR4Resolver
         foreach ($projectAutoload['psr4'] as $prefix => $paths) {
             $paths = is_array($paths) ? $paths : [$paths];
             $this->psr4Prefixes[$prefix] = array_map(
-                fn($path) => $this->normalizePath($this->projectRoot . '/' . $path),
+                fn($path) => $this->normalizePath($this->projectRoot . DIRECTORY_SEPARATOR . $path),
                 $paths
             );
         }
@@ -118,13 +118,13 @@ class PSR4Resolver
         foreach ($projectAutoload['psr0'] as $prefix => $paths) {
             $paths = is_array($paths) ? $paths : [$paths];
             $this->psr0Prefixes[$prefix] = array_map(
-                fn($path) => $this->normalizePath($this->projectRoot . '/' . $path),
+                fn($path) => $this->normalizePath($this->projectRoot . DIRECTORY_SEPARATOR . $path),
                 $paths
             );
         }
 
         // Load vendor autoload mappings
-        $vendorDir = $this->projectRoot . '/vendor';
+        $vendorDir = $this->projectRoot . DIRECTORY_SEPARATOR . 'vendor';
         if (is_dir($vendorDir)) {
             $vendorAutoload = $this->composerParser->parseVendorAutoload($vendorDir);
 

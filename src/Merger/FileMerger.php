@@ -155,7 +155,7 @@ class FileMerger
             $statements = $this->removeExecutionStoppers($statements, $filePath);
 
             // Get relative path for comment
-            $relativePath = str_replace($config->projectRoot . '/', '', $filePath);
+            $relativePath = str_replace($config->projectRoot . DIRECTORY_SEPARATOR, '', $filePath);
 
             // Build output
             $output = [];
@@ -395,7 +395,7 @@ class FileMerger
                 continue;
             }
 
-            $relativePath = str_replace($config->projectRoot . '/', '', $file);
+            $relativePath = str_replace($config->projectRoot . DIRECTORY_SEPARATOR, '', $file);
 
             try {
                 $content = $this->processAutoloadFile($file, $relativePath, $config);
@@ -555,6 +555,6 @@ HEADER;
      */
     private function getRelativePath(string $path, string $base): string
     {
-        return str_replace($base . '/', '', $path);
+        return str_replace($base . DIRECTORY_SEPARATOR, '', $path);
     }
 }
