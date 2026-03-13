@@ -1,0 +1,23 @@
+{
+    "$schema": "https://raw.githubusercontent.com/box-project/box/main/res/schema.json",
+    "output": "phpfilemerger.phar",
+    "main": "src/index.php",
+    "directories": ["src"],
+    "finder": [
+        {
+            "in": "vendor",
+            "exclude": [
+                "tests",
+                "Tests",
+                "Test",
+                "phpunit",
+                "humbug",
+                "doc",
+                "docs"
+            ]
+        }
+    ],
+    "compression": "GZ",
+    "chmod": "0755",
+    "shebang": "#!/usr/bin/env php"
+}

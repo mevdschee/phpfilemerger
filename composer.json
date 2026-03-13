@@ -5,7 +5,6 @@
     "license": "MIT",
     "require": {
         "php": "^8.1",
-        "humbug/box": "^4.6",
         "nikic/php-parser": "^5.0",
         "psr/event-dispatcher": "^1.0",
         "symfony/console": "^6.0 || ^7.0",
@@ -14,6 +13,7 @@
         "symfony/finder": "^6.0 || ^7.0"
     },
     "require-dev": {
+        "humbug/box": "^4.6",
         "phpunit/phpunit": "^10.0 || ^11.0"
     },
     "autoload": {
