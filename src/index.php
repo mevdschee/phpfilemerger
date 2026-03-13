@@ -11,6 +11,4 @@ require __DIR__ . '/../vendor/autoload.php';
 use PhpFileMerger\Application;
 
 $application = new Application();
-// $application->run();
-
-echo 'asdasdasdasd';
+$application->run();
