@@ -7,7 +7,17 @@ a single self-contained PHP file. It uses a proper AST parser
 ([nikic/php-parser](https://github.com/nikic/PHP-Parser)) rather than naive file
 concatenation, producing a correctly ordered, dependency-aware output file.
 
-Blog: [tqdev.com/2026-merge-php-projects-single-file](https://www.tqdev.com/2026-merge-php-projects-single-file/)
+Blog:
+[tqdev.com/2026-merge-php-projects-single-file](https://www.tqdev.com/2026-merge-php-projects-single-file/)
+
+### smartinus44/phpfilemerger
+
+The original smartinus44/phpfilemerger project is no longer published, and its
+exact behavior is not documented, but this project aims to replace it. The code
+is not a fork of smartinus44/phpfilemerger, but deduced from the code written
+for [PHP‑CRUD‑API](https://github.com/mevdschee/php-crud-api), where this
+project is now is used to flatten multiple PHP source files into a single
+distributable script.
 
 ## Use Case
 
