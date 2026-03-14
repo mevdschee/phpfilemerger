@@ -1,7 +1,5 @@
 # phpfilemerger
 
-A tool inspired by the no longer published: smartinus44/phpfilemerger
-
 A CLI tool that merges a PHP entry point and all of its class dependencies into
 a single self-contained PHP file. It uses a proper AST parser
 ([nikic/php-parser](https://github.com/nikic/PHP-Parser)) rather than naive file
