@@ -181,10 +181,6 @@ vendor/bin/phpunit
 ./build.sh
 ```
 
-## License
-
-See [LICENSE](LICENSE).
-
 ### What about smartinus44/phpfilemerger?
 
 The project smartinus44/phpfilemerger is no longer published, and its exact
