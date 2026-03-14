@@ -109,18 +109,18 @@ php phpfilemerger.phar merge src/index.php --exclude-entry --output dist/lib.php
 
 ## How It Works
 
-1. **Parse** — The entry point is parsed using `nikic/php-parser`. All class
+1. **Parse**: The entry point is parsed using `nikic/php-parser`. All class
    references (`extends`, `implements`, trait `use`, `new`, type hints,
    attributes, etc.) are extracted.
-2. **Resolve** — Each referenced class name is resolved to a file path using
+2. **Resolve**: Each referenced class name is resolved to a file path using
    PSR-4/PSR-0 mappings read from `composer.json` and the Composer-generated
    autoload files in `vendor/composer/`.
-3. **Build dependency graph** — The tool recursively processes dependencies,
+3. **Build dependency graph**: The tool recursively processes dependencies,
    building a graph of all required files.
-4. **Sort** — Files are sorted in topological order so that hard dependencies
+4. **Sort**: Files are sorted in topological order so that hard dependencies
    (`extends`, `implements`, trait `use`) are always placed before the classes
    that depend on them.
-5. **Merge** — Each file is processed by the AST and its contents are emitted
+5. **Merge**: Each file is processed by the AST and its contents are emitted
    into the output file, wrapped in an explicit `namespace { ... }` block. The
    following transformations are applied automatically:
    - `declare(strict_types=1)` declarations are stripped (a single one is
@@ -129,7 +129,7 @@ php phpfilemerger.phar merge src/index.php --exclude-entry --output dist/lib.php
    - Any `files` autoload entries from vendor packages (e.g. global helper
      functions) are inlined
    - Each included file is annotated with a `// file: relative/path.php` comment
-6. **Validate** — `php -l` is run on the output file to verify syntax.
+6. **Validate**: `php -l` is run on the output file to verify syntax.
 
 ### What the output looks like
 
@@ -160,16 +160,15 @@ namespace {
 
 ## Limitations
 
-- **Dynamic class loading** — `new $className()` and similar dynamic patterns
+- **Dynamic class loading**: `new $className()` and similar dynamic patterns
   cannot be statically analyzed and will not be automatically included.
-- **Multiple namespace blocks per file** — files using more than one namespace
+- **Multiple namespace blocks per file**: files using more than one namespace
   block may not be handled correctly.
-- **`include`/`require` statements** — any `include`/`require` other than
+- **`include`/`require` statements**: any `include`/`require` other than
   `vendor/autoload.php` will trigger a warning and be skipped, since relative
   paths would break in the merged file.
-- **Top-level `exit`/`die`/`return`** — these are disallowed in dependency files
-  (they would abort execution of the entire merged file) and will cause an
-  error.
+- **Top-level `return`**: these are disallowed in dependency files (they would
+  abort execution of the entire merged file) and will cause an error.
 
 ## Development
 
