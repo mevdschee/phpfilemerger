@@ -5,6 +5,8 @@ a single self-contained PHP file. It uses a proper AST parser
 ([nikic/php-parser](https://github.com/nikic/PHP-Parser)) rather than naive file
 concatenation, producing a correctly ordered, dependency-aware output file.
 
+Blog: [tqdev.com/2026-merge-php-projects-single-file](https://www.tqdev.com/2026-merge-php-projects-single-file/)
+
 ## Use Case
 
 If you maintain a PHP project that you want to distribute as a single file (e.g.
