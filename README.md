@@ -1,4 +1,4 @@
-# PHP File Merger
+# phpfilemerger
 
 A CLI tool that merges a PHP entry point and all of its class dependencies into
 a single self-contained PHP file. It uses a proper AST parser
