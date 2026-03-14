@@ -10,14 +10,6 @@ concatenation, producing a correctly ordered, dependency-aware output file.
 Blog:
 [tqdev.com/2026-merge-php-projects-single-file](https://www.tqdev.com/2026-merge-php-projects-single-file/)
 
-### smartinus44/phpfilemerger
-
-The project smartinus44/phpfilemerger is no longer published, and its exact
-behavior is not documented, but this project aims to replace it. The code is not
-a fork of smartinus44/phpfilemerger, but deduced from the code written for
-[PHP‑CRUD‑API](https://github.com/mevdschee/php-crud-api), a project that
-flattens multiple PHP source files into a single distributable API script.
-
 ## Use Case
 
 If you maintain a PHP project that you want to distribute as a single file (e.g.
@@ -192,3 +184,11 @@ vendor/bin/phpunit
 ## License
 
 See [LICENSE](LICENSE).
+
+### What about smartinus44/phpfilemerger?
+
+The project smartinus44/phpfilemerger is no longer published, and its exact
+behavior is not documented, but this project aims to replace it. The code is not
+a fork of smartinus44/phpfilemerger, but deduced from the code written for
+[PHP‑CRUD‑API](https://github.com/mevdschee/php-crud-api), a project that
+flattens multiple PHP source files into a single distributable API script.
