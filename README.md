@@ -16,7 +16,7 @@ The project smartinus44/phpfilemerger is no longer published, and its exact
 behavior is not documented, but this project aims to replace it. The code is not
 a fork of smartinus44/phpfilemerger, but deduced from the code written for
 [PHP‑CRUD‑API](https://github.com/mevdschee/php-crud-api), where this project is
-now is used to flatten multiple PHP source files into a single distributable
+now used to flatten multiple PHP source files into a single distributable
 script.
 
 ## Use Case
