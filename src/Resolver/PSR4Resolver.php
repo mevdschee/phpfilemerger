@@ -197,6 +197,30 @@ class PSR4Resolver
     }
 
     /**
+     * Whether a class name falls under a registered PSR-4/PSR-0 prefix, i.e. it is
+     * a class the merger is responsible for bundling rather than an external or
+     * built-in one. Used to detect references that *should* resolve to a file but
+     * do not, which would otherwise be a silent omission from the merged output.
+     */
+    public function matchesKnownPrefix(string $className): bool
+    {
+        $className = ltrim($className, '\\');
+
+        foreach (array_keys($this->psr4Prefixes) as $prefix) {
+            if ($prefix !== '' && strpos($className, $prefix) === 0) {
+                return true;
+            }
+        }
+        foreach (array_keys($this->psr0Prefixes) as $prefix) {
+            if ($prefix !== '' && strpos($className, $prefix) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Resolve using PSR-4 rules
      */
     private function resolvePsr4(string $className): ?string
@@ -253,10 +277,11 @@ class PSR4Resolver
      */
     private function isBuiltinClass(string $className): bool
     {
-        // Remove namespace for checking
-        $shortName = substr($className, strrpos($className, '\\') + 1);
-
-        if (in_array($shortName, self::BUILTIN_CLASSES, true)) {
+        // The hardcoded list names global PHP classes (\Error, \Exception,
+        // \DateTime, ...). Only match it for unqualified names: a namespaced class
+        // whose short name happens to collide (e.g. PhpParser\Node\Expr\Error) is
+        // a project class and must still be resolved, not skipped as a built-in.
+        if (!str_contains($className, '\\') && in_array($className, self::BUILTIN_CLASSES, true)) {
             return true;
         }
 

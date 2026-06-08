@@ -50,6 +50,54 @@ class DependencyGraph
         $this->processing = [];
 
         $this->processFile($entryPoint);
+        $this->reportUnresolvedReferences();
+    }
+
+    /**
+     * Warn about references that should have been bundled but were not.
+     *
+     * A class whose namespace belongs to a registered autoload prefix is one the
+     * merger is responsible for. If such a class is referenced yet is neither
+     * resolvable to a file nor declared by any file already in the graph, it will
+     * be undefined at runtime in the merged output (e.g. a class dropped because
+     * its short name collided with a built-in, or only reachable through a
+     * reference the analyzer cannot follow). Surfacing it makes that fail loudly
+     * at merge time instead of silently producing a broken file.
+     *
+     * Checking against the set of actually-declared types (not just name-to-file
+     * resolution) avoids false positives for classes that share a file with
+     * another class (PSR-4 maps a name to one file, but a file may declare more).
+     */
+    private function reportUnresolvedReferences(): void
+    {
+        $declared = [];
+        foreach ($this->files as $phpFile) {
+            foreach ($phpFile->getAllDeclaredTypes() as $name) {
+                $declared['\\' . ltrim($name, '\\')] = true;
+            }
+        }
+
+        $reported = [];
+        foreach ($this->files as $phpFile) {
+            foreach ($phpFile->getReferencedClassNames() as $className) {
+                $normalized = '\\' . ltrim($className, '\\');
+                if (isset($reported[$normalized]) || isset($declared[$normalized])) {
+                    continue;
+                }
+                if (!$this->resolver->matchesKnownPrefix($className)) {
+                    continue;
+                }
+                if ($this->resolver->resolve($className) !== null) {
+                    continue;
+                }
+
+                $reported[$normalized] = true;
+                error_log(
+                    "Warning: referenced class $className matches a registered autoload prefix " .
+                        "but is not defined by any merged file; it will be undefined in the merged output."
+                );
+            }
+        }
     }
 
     /**
