@@ -6,6 +6,9 @@ namespace PhpFileMerger;
 
 use PhpFileMerger\Command\MergeCommand;
 use Symfony\Component\Console\Application as BaseApplication;
+use Symfony\Component\Console\Command\CompleteCommand;
+use Symfony\Component\Console\Command\HelpCommand;
+use Symfony\Component\Console\Command\ListCommand;
 use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -15,7 +18,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class Application extends BaseApplication
 {
-    private const VERSION = '1.0.0';
+    private const VERSION = '1.2.0';
 
     public function __construct()
     {
@@ -42,5 +45,20 @@ class Application extends BaseApplication
         }
 
         return parent::run($input, $output);
+    }
+
+    /**
+     * Symfony's default command set includes DumpCompletionCommand, whose
+     * constructor reads the completion.* resource files from a directory resolved
+     * relative to __DIR__. A merged single-file build collapses every source file
+     * to one location, so that directory no longer exists and merely constructing
+     * the command throws an UnexpectedValueException at startup. Shell completion
+     * is meaningless for a merged distribution, so leave it out.
+     *
+     * @return array<\Symfony\Component\Console\Command\Command>
+     */
+    protected function getDefaultCommands(): array
+    {
+        return [new HelpCommand(), new ListCommand(), new CompleteCommand()];
     }
 }
