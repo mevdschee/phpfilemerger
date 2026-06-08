@@ -37,23 +37,15 @@ class FileMerger
      */
     public function merge(array $sortedFilePaths, array $phpFiles, Config $config): string
     {
-        $output = [];
+        // Inlines static require/include calls (e.g. require __DIR__ . '/x.php')
+        // that would otherwise resolve relative to the merged file at runtime.
+        // Shared across every processed file so each target is emitted only once.
+        $inliner = new RequireInliner($this->parser, $this->printer, $config);
 
-        // Check if entry point has a shebang line
-        $shebang = $this->extractShebang($config->entryPoint);
-        if ($shebang !== null) {
-            $output[] = $shebang;
-        }
-
-        // Add header
-        $output[] = $this->generateHeader($config);
-        $output[] = '';
-
-        // Include autoload function files (e.g. trigger_deprecation) before any class files
-        $autoloadFilesContent = $this->mergeAutoloadFiles($config);
-        if ($autoloadFilesContent !== '') {
-            $output[] = $autoloadFilesContent;
-        }
+        // Include autoload function files (e.g. trigger_deprecation) before any
+        // class files. Processed first so any requires they perform are registered
+        // with the inliner before the registry is rendered below.
+        $autoloadFilesContent = $this->mergeAutoloadFiles($config, $inliner);
 
         // Move entry point to the end so it executes after all classes are defined
         $reorderedPaths = [];
@@ -73,6 +65,7 @@ class FileMerger
         }
 
         // Process each file
+        $bodyParts = [];
         foreach ($reorderedPaths as $filePath) {
             // Skip entry point if configured
             if ($config->excludeEntryPoint && $filePath === $config->entryPoint) {
@@ -90,12 +83,37 @@ class FileMerger
             }
 
             try {
-                $mergedContent = $this->processFile($filePath, $phpFile, $config);
-                $output[] = $mergedContent;
-                $output[] = '';
+                $bodyParts[] = $this->processFile($filePath, $phpFile, $config, $inliner);
+                $bodyParts[] = '';
             } catch (RuntimeException $e) {
                 error_log("Warning: Failed to process file $filePath: " . $e->getMessage());
             }
+        }
+
+        // Assemble: shebang, header, then the inline-require registry (helper plus
+        // inlined closures) so it is defined before any code that calls it.
+        $output = [];
+
+        $shebang = $this->extractShebang($config->entryPoint);
+        if ($shebang !== null) {
+            $output[] = $shebang;
+        }
+
+        $output[] = $this->generateHeader($config);
+        $output[] = '';
+
+        $registry = $inliner->renderRegistry();
+        if ($registry !== '') {
+            $output[] = $registry;
+            $output[] = '';
+        }
+
+        if ($autoloadFilesContent !== '') {
+            $output[] = $autoloadFilesContent;
+        }
+
+        foreach ($bodyParts as $part) {
+            $output[] = $part;
         }
 
         return implode("\n", $output);
@@ -132,7 +150,7 @@ class FileMerger
      * @param Config $config
      * @return string
      */
-    private function processFile(string $filePath, PHPFile $phpFile, Config $config): string
+    private function processFile(string $filePath, PHPFile $phpFile, Config $config, RequireInliner $inliner): string
     {
         $code = file_get_contents($filePath);
         if ($code === false) {
@@ -148,10 +166,32 @@ class FileMerger
             // Extract statements from namespace (or use top-level statements)
             $statements = $this->extractStatements($ast);
 
+            // Inline resolvable require/include calls before any other filtering,
+            // so an inlined `return require ...` is no longer a top-level return.
+            $statements = $inliner->inlineStatements($statements, $filePath);
+
             // Filter out unwanted statements
             $statements = $this->filterStatements($statements, $config, $filePath);
 
-            // Remove execution-stopping statements at namespace scope
+            // A namespace-scope `return` (e.g. a PHP-version guard before a class
+            // definition) would halt the whole merged script. Wrap the body in an
+            // immediately-invoked closure so the return is contained while any
+            // declarations inside still land in this file's namespace.
+            if ($this->hasNamespaceScopeReturn($statements)) {
+                $uses = [];
+                $body = [];
+                foreach ($statements as $stmt) {
+                    if ($stmt instanceof \PhpParser\Node\Stmt\Use_) {
+                        $uses[] = $stmt;
+                    } else {
+                        $body[] = $stmt;
+                    }
+                }
+                $statements = array_merge($uses, $this->wrapInClosure($body));
+            }
+
+            // Remove execution-stopping statements at namespace scope (exit/die,
+            // __halt_compiler); any return has been contained by the wrap above.
             $statements = $this->removeExecutionStoppers($statements, $filePath);
 
             // Get relative path for comment
@@ -229,18 +269,12 @@ class FileMerger
         $filtered = [];
 
         foreach ($statements as $stmt) {
-            // Skip declare statements if configured
-            if ($config->removeStrictTypes && $stmt instanceof \PhpParser\Node\Stmt\Declare_) {
-                $isDeclareStrictTypes = false;
-                foreach ($stmt->declares as $declare) {
-                    if ($declare->key->toString() === 'strict_types') {
-                        $isDeclareStrictTypes = true;
-                        break;
-                    }
-                }
-                if ($isDeclareStrictTypes) {
-                    continue;
-                }
+            // Always drop declare(strict_types=1): the merged output wraps every
+            // file in a bracketed "namespace { ... }" block, where a strict_types
+            // declaration is a fatal error (it must be the very first statement in
+            // the file). $config->removeStrictTypes is honoured for completeness.
+            if ($config->removeStrictTypes && $this->isStrictTypesDeclare($stmt)) {
+                continue;
             }
 
             // Handle include/require statements
@@ -274,6 +308,102 @@ class FileMerger
         }
 
         return $filtered;
+    }
+
+    /**
+     * Whether a statement is a declare(strict_types=...) directive. Such a
+     * directive must be the very first statement in a file, so it can never
+     * appear inside the bracketed namespace blocks this merger emits and must
+     * be stripped from every merged file.
+     *
+     * @param \PhpParser\Node\Stmt $stmt
+     * @return bool
+     */
+    private function isStrictTypesDeclare(\PhpParser\Node\Stmt $stmt): bool
+    {
+        if (!$stmt instanceof \PhpParser\Node\Stmt\Declare_) {
+            return false;
+        }
+
+        foreach ($stmt->declares as $declare) {
+            if ($declare->key->toString() === 'strict_types') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether the given statements contain a `return` at namespace scope (i.e. not
+     * inside a function, method or closure). Such a return would halt the whole
+     * merged script rather than just ending the original file.
+     *
+     * @param array<\PhpParser\Node\Stmt> $statements
+     * @return bool
+     */
+    private function hasNamespaceScopeReturn(array $statements): bool
+    {
+        $found = false;
+        $traverser = new NodeTraverser();
+        $traverser->addVisitor(new class($found) extends NodeVisitorAbstract {
+            private int $functionDepth = 0;
+            private bool $found;
+
+            public function __construct(bool &$found)
+            {
+                $this->found = &$found;
+            }
+
+            public function enterNode(\PhpParser\Node $node)
+            {
+                if ($this->isFunctionLike($node)) {
+                    $this->functionDepth++;
+                } elseif ($this->functionDepth === 0 && $node instanceof \PhpParser\Node\Stmt\Return_) {
+                    $this->found = true;
+                }
+                return null;
+            }
+
+            public function leaveNode(\PhpParser\Node $node)
+            {
+                if ($this->isFunctionLike($node)) {
+                    $this->functionDepth--;
+                }
+                return null;
+            }
+
+            private function isFunctionLike(\PhpParser\Node $node): bool
+            {
+                return $node instanceof \PhpParser\Node\Stmt\Function_
+                    || $node instanceof \PhpParser\Node\Stmt\ClassMethod
+                    || $node instanceof \PhpParser\Node\Expr\Closure
+                    || $node instanceof \PhpParser\Node\Expr\ArrowFunction;
+            }
+        });
+
+        $traverser->traverse($statements);
+
+        return $found;
+    }
+
+    /**
+     * Wrap statements in an immediately-invoked static closure so that a
+     * namespace-scope `return` returns from the closure instead of halting the
+     * merged script. Declarations inside still land in the surrounding namespace.
+     *
+     * @param array<\PhpParser\Node\Stmt> $statements
+     * @return array<\PhpParser\Node\Stmt>
+     */
+    private function wrapInClosure(array $statements): array
+    {
+        $closure = new \PhpParser\Node\Expr\Closure([
+            'static' => true,
+            'params' => [],
+            'stmts' => $statements,
+        ]);
+
+        return [new \PhpParser\Node\Stmt\Expression(new \PhpParser\Node\Expr\FuncCall($closure, []))];
     }
 
     /**
@@ -365,7 +495,7 @@ class FileMerger
      * These define functions like trigger_deprecation() that must exist before
      * any class files are loaded.
      */
-    private function mergeAutoloadFiles(Config $config): string
+    private function mergeAutoloadFiles(Config $config, RequireInliner $inliner): string
     {
         $autoloadFilesPath = $config->getVendorDir() . '/composer/autoload_files.php';
         if (!file_exists($autoloadFilesPath)) {
@@ -398,7 +528,7 @@ class FileMerger
             $relativePath = str_replace($config->projectRoot . DIRECTORY_SEPARATOR, '', $file);
 
             try {
-                $content = $this->processAutoloadFile($file, $relativePath, $config);
+                $content = $this->processAutoloadFile($file, $relativePath, $config, $inliner);
                 $output[] = $content;
                 $output[] = '';
             } catch (RuntimeException $e) {
@@ -413,7 +543,7 @@ class FileMerger
      * Process a single autoload function file using the PHP parser so that
      * any namespace declarations are converted to bracketed form.
      */
-    private function processAutoloadFile(string $filePath, string $relativePath, Config $config): string
+    private function processAutoloadFile(string $filePath, string $relativePath, Config $config, RequireInliner $inliner): string
     {
         $code = file_get_contents($filePath);
         if ($code === false) {
@@ -452,9 +582,21 @@ class FileMerger
                 continue;
             }
 
-            // Filter out include/require and return statements that use __DIR__
+            // Inline resolvable require/include calls (e.g. a polyfill bootstrap
+            // that conditionally requires its PHP 8 variant) before filtering.
+            $stmts = $inliner->inlineStatements($stmts, $filePath);
+
+            // Drop strict_types declares and any include/require that could not be
+            // inlined (its path would resolve relative to the merged file).
             $printer = $this->printer;
-            $stmts = array_filter($stmts, static function (\PhpParser\Node\Stmt $stmt) use ($filePath, $printer): bool {
+            $self = $this;
+            $stmts = array_filter($stmts, static function (\PhpParser\Node\Stmt $stmt) use ($filePath, $printer, $self): bool {
+                // Drop declare(strict_types=1): it is illegal inside the bracketed
+                // namespace block this file is wrapped in (must be the first
+                // statement in the file). Autoload function files commonly carry it.
+                if ($self->isStrictTypesDeclare($stmt)) {
+                    return false;
+                }
                 if (
                     $stmt instanceof \PhpParser\Node\Stmt\Expression
                     && $stmt->expr instanceof \PhpParser\Node\Expr\Include_
@@ -474,13 +616,6 @@ class FileMerger
                     );
                     return false;
                 }
-                if ($stmt instanceof \PhpParser\Node\Stmt\Return_) {
-                    error_log(
-                        "Warning: Skipped top-level return in $filePath at line " .
-                            $stmt->getLine() . ". Would stop execution of the merged file."
-                    );
-                    return false;
-                }
                 return true;
             });
             $stmts = array_values($stmts);
@@ -489,10 +624,31 @@ class FileMerger
                 continue;
             }
 
+            // `use` imports must stay at namespace-block scope; the rest is the body.
+            $uses = [];
+            $body = [];
+            foreach ($stmts as $stmt) {
+                if ($stmt instanceof \PhpParser\Node\Stmt\Use_) {
+                    $uses[] = $stmt;
+                } else {
+                    $body[] = $stmt;
+                }
+            }
+
+            // Autoload files often early-exit with a namespace-scope `return`
+            // (e.g. a polyfill that returns when the real extension is loaded).
+            // A bare `return` would halt the whole merged script, so wrap the body
+            // in an immediately-invoked closure to contain it.
+            if ($this->hasNamespaceScopeReturn($body)) {
+                $body = $this->wrapInClosure($body);
+            }
+
             $output[] = $namespace !== '' ? "namespace $namespace {" : 'namespace {';
 
-            foreach (explode("\n", $this->printer->prettyPrint($stmts)) as $line) {
-                $output[] = trim($line) !== '' ? $indent . $line : '';
+            foreach (array_merge($uses, $body) as $stmt) {
+                foreach (explode("\n", $this->printer->prettyPrint([$stmt])) as $line) {
+                    $output[] = trim($line) !== '' ? $indent . $line : '';
+                }
             }
 
             $output[] = '}';
