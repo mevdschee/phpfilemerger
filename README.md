@@ -42,7 +42,12 @@ composer install
 
 This produces `phpfilemerger.php` in the project root. The build uses
 phpfilemerger to merge its own sources, so there is no external build
-dependency.
+dependency. `build.sh` is a thin wrapper around a single self-compilation
+command, which you can also run directly:
+
+```bash
+php src/index.php merge src/index.php --output phpfilemerger.php
+```
 
 ### Run without building
 
