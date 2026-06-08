@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Build script for PHP File Merger
-# Uses box to create a PHAR archive
+# Uses phpfilemerger itself to build a single-file distributable
 
 set -e
 
@@ -17,32 +17,17 @@ if [ ! -d "vendor" ]; then
     echo ""
 fi
 
-# Check if box is available
-if [ ! -f "vendor/bin/box" ]; then
-    echo "Error: box is not installed."
-    echo "Install it with: composer require --dev humbug/box"
-    exit 1
-fi
-
-# Make sure phar.readonly is disabled
-PHP_INI_READONLY=$(php -r "echo ini_get('phar.readonly');")
-if [ "$PHP_INI_READONLY" = "1" ]; then
-    echo "Error: phar.readonly must be disabled."
-    echo "Run with: php -d phar.readonly=0 vendor/bin/box compile"
-    exit 1
-fi
-
-# Build the PHAR
-echo "Building phpfilemerger.phar using box..."
+# Build the single merged file using phpfilemerger itself
+echo "Building phpfilemerger.php using phpfilemerger..."
 echo ""
 
-box compile
+php src/index.php merge src/index.php --output phpfilemerger.php
 
 echo ""
 echo "✓ Build completed successfully!"
 echo ""
-echo "Output: phpfilemerger.phar"
+echo "Output: phpfilemerger.php"
 echo ""
 echo "Test with:"
-echo "  php phpfilemerger.phar --version"
-echo "  php phpfilemerger.phar --help"
+echo "  php phpfilemerger.php --version"
+echo "  php phpfilemerger.php --help"

@@ -23,12 +23,12 @@ and writes a single merged `.php` file.
 
 ## Installation
 
-### Download the PHAR (recommended)
+### Download the single-file build (recommended)
 
-Download the latest `phpfilemerger.phar` from the releases and run it directly:
+Download the latest `phpfilemerger.php` from the releases and run it directly:
 
 ```bash
-php phpfilemerger.phar merge src/index.php
+php phpfilemerger.php merge src/index.php
 ```
 
 ### Build from source
@@ -40,10 +40,9 @@ composer install
 ./build.sh
 ```
 
-This produces `phpfilemerger.phar` in the project root.
-
-> **Note:** Building requires `phar.readonly = Off` in your `php.ini`. The build
-> script will tell you if this needs to be changed.
+This produces `phpfilemerger.php` in the project root. The build uses
+phpfilemerger to merge its own sources, so there is no external build
+dependency.
 
 ### Run without building
 
@@ -55,13 +54,13 @@ php src/index.php merge src/index.php
 ## Usage
 
 ```
-php phpfilemerger.phar merge <entry> [options]
+php phpfilemerger.php merge <entry> [options]
 ```
 
 `merge` is the default command and can be omitted:
 
 ```
-php phpfilemerger.phar <entry> [options]
+php phpfilemerger.php <entry> [options]
 ```
 
 ### Arguments
@@ -88,21 +87,21 @@ entry point looking for a `composer.json` file.
 Merge `src/index.php` and all its dependencies into a single file:
 
 ```bash
-php phpfilemerger.phar merge src/index.php
+php phpfilemerger.php merge src/index.php
 # Output: src/index.merged.php
 ```
 
 Specify a custom output path:
 
 ```bash
-php phpfilemerger.phar merge src/index.php --output dist/app.php
+php phpfilemerger.php merge src/index.php --output dist/app.php
 ```
 
 Produce an includeable library file (no entry-point code, only class
 definitions):
 
 ```bash
-php phpfilemerger.phar merge src/index.php --exclude-entry --output dist/lib.php
+php phpfilemerger.php merge src/index.php --exclude-entry --output dist/lib.php
 ```
 
 ## How It Works
@@ -193,7 +192,7 @@ namespace {
 # Run tests
 vendor/bin/phpunit
 
-# Build the PHAR
+# Build the single-file distributable
 ./build.sh
 ```
 
