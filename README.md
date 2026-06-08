@@ -11,8 +11,8 @@ Blog:
 ## Use Case
 
 If you maintain a PHP project that you want to distribute as a single file (e.g.
-a single-file API, a standalone script, or a PHAR-like distributable), PHP File
-Merger automates the process. It statically analyzes your code, resolves all
+a single-file API or a standalone script), PHP File Merger automates the
+process. It statically analyzes your code, resolves all
 class dependencies via PSR-4/PSR-0 autoloading, sorts them in dependency order,
 and writes a single merged `.php` file.
 
