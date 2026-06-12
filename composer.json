@@ -1,5 +1,5 @@
 {
-    "name": "phpfilemerger/phpfilemerger",
+    "name": "mevdschee/phpfilemerger",
     "description": "Intelligently merge PHP files and dependencies into a single file",
     "type": "project",
     "license": "MIT",
@@ -25,7 +25,7 @@
             "PhpFileMerger\\Tests\\": "tests/"
         }
     },
-    "bin": ["bin/phpfilemerger"],
+    "bin": ["src/index.php"],
     "config": {
         "sort-packages": true,
         "optimize-autoloader": true
