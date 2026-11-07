@@ -359,10 +359,38 @@ class RequireInliner
             if ($this->isStrictTypesDeclare($stmt)) {
                 continue;
             }
+            // A `const` statement is illegal inside the closure, so rewrite it
+            // into define() calls. Unlike hoisting it out of the closure, this
+            // still defines the constant only when the require actually runs.
+            if ($stmt instanceof Node\Stmt\Const_) {
+                array_push($body, ...$this->constToDefines($stmt, $namespace));
+                continue;
+            }
             $body[] = $stmt;
         }
 
         return [$namespace, $uses, $body];
+    }
+
+    /**
+     * Rewrite `const A = 1, B = 2;` into `\define('Ns\A', 1); \define('Ns\B', 2);`.
+     *
+     * @return array<Node\Stmt\Expression>
+     */
+    private function constToDefines(Node\Stmt\Const_ $stmt, string $namespace): array
+    {
+        $defines = [];
+        foreach ($stmt->consts as $i => $const) {
+            $name = $namespace !== '' ? $namespace . '\\' . $const->name->toString() : $const->name->toString();
+            $call = new Node\Expr\FuncCall(
+                new Node\Name\FullyQualified('define'),
+                [new Node\Arg(new Node\Scalar\String_($name)), new Node\Arg($const->value)]
+            );
+            // Keep the statement's comments (e.g. a docblock) on the first define.
+            $defines[] = new Node\Stmt\Expression($call, $i === 0 ? $stmt->getAttributes() : []);
+        }
+
+        return $defines;
     }
 
     /**
